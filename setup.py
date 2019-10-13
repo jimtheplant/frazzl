@@ -3,7 +3,6 @@ from setuptools.command.install import install
 import subprocess
 import os
 
-
 class PostInstallCommand(install):
     def run(self):
         if os.name == "nt":
@@ -11,9 +10,9 @@ class PostInstallCommand(install):
         else:
             activate_script = "activate"
         gateway_path = os.path.join(os.getcwd(), "gateway")
-        activatecmd = os.path.join(gateway_path, "node", "Scripts", activate_script)
+        activate_cmd = os.path.join(gateway_path, "node", "Scripts", activate_script)
         subprocess.run("nodeenv node".split(), cwd=gateway_path)
-        subprocess.run([activatecmd] + " & npm install".split(), cwd=gateway_path)
+        subprocess.run([activate_cmd] + " & npm install".split(), cwd=gateway_path)
         install.run(self)
 
 
