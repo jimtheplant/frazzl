@@ -1,9 +1,7 @@
-from ariadne import ObjectType, QueryType, make_executable_schema, UnionType, gql
+from ariadne import ObjectType, make_executable_schema, UnionType
 from .directive import *
 from .scalars import _FieldSet, _Any
-from ariadne.asgi import GraphQL
-import uvicorn
-import uuid
+
 
 ENTITY_QUERY = "_entities(representations: [_Any!]!): [_Entity]!"
 SERVICE_TEMPLATE = """
@@ -20,7 +18,7 @@ type _Service {{
 
 {query_str}
 
-{extend_query} type Query {{
+extend type Query {{
   {entity_query}
   _service: _Service!
 }}
@@ -36,12 +34,11 @@ directive @extends on OBJECT | INTERFACE
 
 
 class Service:
-    gql_type = ObjectType("_Service")
 
-    def __init__(self, service_name, schema, query=None, port=8000):
+    def __init__(self, service_name, schema, query):
+        self.gql_type = ObjectType("_Service")
         self.service_name = service_name
-        self.extend_query = "extend" if query else ""
-        self.query = query if query else QueryType()
+        self.query = query
         self.directives = {"key": KeyDirective, "requires": RequiresDirective, "provides": ProvidesDirective,
                            "external": ExternalDirective, "extends": ExtendsDirective}
         self.sdl = schema
@@ -50,7 +47,6 @@ class Service:
         self.query.set_field("_service", self.resolve_service)
         self.gql_type.set_field("sdl", self.resolve_sdl)
         self.gql_type.set_field("name", self.resolve_name)
-        self.port = port
 
     def resolve_name(self, info, context):
         return self.service_name
@@ -84,14 +80,9 @@ class Service:
             self.query.set_field("_entities", self._entities)
             entity_query_str = ENTITY_QUERY
             self.federation_types.append(entity_union)
-        template = template.format(union_entities=entity_union_str, entity_query=entity_query_str, query_str=self.sdl, extend_query=self.extend_query)
+        template = template.format(union_entities=entity_union_str, entity_query=entity_query_str, query_str=self.sdl)
         return make_executable_schema(template, [self.query, _Any, _FieldSet] + [ObjectType(entity_name) for entity_name in self.entities.keys()] + self.federation_types,
                                       directives=self.directives)
-
-    def start_service(self):
-        schema = self.create_schema_from_template()
-        app = GraphQL(schema)
-        uvicorn.run(app, port=self.port)
 
     def _make_entity_str(self):
         if len(self.entities) <= 0:

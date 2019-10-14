@@ -1,11 +1,16 @@
 import sys
 import os
-import site
+from ariadne.asgi import GraphQL
+import uvicorn
 import subprocess
+import multiprocessing
+import tempfile
+import json
 
 LAUNCHED_SERVICES = []
 federation = []
 GATEWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "gateway")
+
 
 class ServiceTypes:
     EXTERNAL = "external"
@@ -32,37 +37,59 @@ def print_info(config):
             print("\t\u2022 {0} ({1})".format(service_config["service_name"], federation_info))
 
 
+def __start_service(service, port):
+    schema = service.create_schema_from_template()
+    app = GraphQL(schema)
+    uvicorn.run(app, port=port)
+
+
+def start_service(service, port):
+    process = multiprocessing.Process(target=__start_service, args=(service, port))
+    process.start()
+    return process
+
+
 def start_local(service_config):
     local_service = __import__(service_config["module_name"])
-    subprocess.Popen([sys.executable, local_service.app.__file__], stdout=sys.stdout, stderr=sys.stderr)
+    return start_service(local_service.APP_SERVICE, int(service_config["port"]))
 
 
-def start_gateway():
+def create_tempfile(config):
+    config_file = tempfile.mkstemp()
+    apollo_config = {"federation": config.FEDERATION}
+    json.dump(apollo_config, open(config_file[1], "w"), ensure_ascii=False)
+    return config_file[1]
+
+
+def start_gateway(config):
+    config_file_path = create_tempfile(config)
     if os.name == "nt":
         activate_script = "activate.bat"
     else:
         activate_script = "activate"
-    activate_cmd = os.path.join(GATEWAY_PATH, "node", "Scripts", activate_script)
-    subprocess.Popen([activate_cmd] + " & node -v".split(), cwd=GATEWAY_PATH, stdout=sys.stdout, stderr=sys.stderr)
+    activate_cmd = [os.path.join(GATEWAY_PATH, "node", "Scripts", activate_script)]
+    start_commands = " & node index.js start".split()
+    process = subprocess.Popen(activate_cmd + start_commands + [config_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout, stderr=sys.stderr)
+    process.wait()
 
 
 def start_services(config):
     global federation
+    services = []
     federation = config.FEDERATION
     print_info(config)
     if len(federation) > 0:
         for service_config in federation:
             service_type = service_config["type"]
             if service_type is ServiceTypes.LOCAL:
-                start_local(service_config)
+                services.append(start_local(service_config))
             elif service_type is ServiceTypes.EXTERNAL:
                 pass
             elif service_type is ServiceTypes.MODULE:
                 pass
             else:
                 raise Exception()
-    config.APP_SERVICE.start_service()
-
-
-
-
+    services.append(start_service(config.APP_SERVICE, int(config.APP_PORT)))
+    start_gateway(config)
+    for service in services:
+        service.kill()
