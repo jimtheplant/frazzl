@@ -5,7 +5,7 @@ import subprocess
 
 LAUNCHED_SERVICES = []
 federation = []
-GATEWAY_PATH = None
+GATEWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "gateway")
 
 class ServiceTypes:
     EXTERNAL = "external"
@@ -34,7 +34,16 @@ def print_info(config):
 
 def start_local(service_config):
     local_service = __import__(service_config["module_name"])
-    subprocess.Popen([sys.executable, local_service], stdout=sys.stdout, stderr=sys.stderr)
+    subprocess.Popen([sys.executable, local_service.app.__file__], stdout=sys.stdout, stderr=sys.stderr)
+
+
+def start_gateway():
+    if os.name == "nt":
+        activate_script = "activate.bat"
+    else:
+        activate_script = "activate"
+    activate_cmd = os.path.join(GATEWAY_PATH, "node", "Scripts", activate_script)
+    subprocess.Popen([activate_cmd] + " & node -v".split(), cwd=GATEWAY_PATH, stdout=sys.stdout, stderr=sys.stderr)
 
 
 def start_services(config):
@@ -52,9 +61,7 @@ def start_services(config):
                 pass
             else:
                 raise Exception()
-    print(federation)
     config.APP_SERVICE.start_service()
-    # subprocess.Popen()
 
 
 

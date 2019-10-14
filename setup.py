@@ -3,16 +3,18 @@ from setuptools.command.install import install
 import subprocess
 import os
 
+
 class PostInstallCommand(install):
     def run(self):
         if os.name == "nt":
             activate_script = "activate.bat"
         else:
             activate_script = "activate"
-        gateway_path = os.path.join(os.getcwd(), "gateway")
+        gateway_path = os.path.join(os.curdir, "gateway")
         activate_cmd = os.path.join(gateway_path, "node", "Scripts", activate_script)
         subprocess.run("nodeenv node".split(), cwd=gateway_path)
         subprocess.run([activate_cmd] + " & npm install".split(), cwd=gateway_path)
+        os.environ["GATEWAY_PATH"] = gateway_path
         install.run(self)
 
 
