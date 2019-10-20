@@ -1,5 +1,6 @@
-from ariadne import SchemaDirectiveVisitor
 from typing import Union
+
+from ariadne import SchemaDirectiveVisitor
 from graphql import GraphQLField, GraphQLObjectType, GraphQLInterfaceType
 
 
@@ -16,9 +17,9 @@ class KeyDirective(SchemaDirectiveVisitor):
 
 class RequiresDirective(SchemaDirectiveVisitor):
     def visit_field_definition(
-        self,
-        field: GraphQLField,
-        object_type: Union[GraphQLObjectType, GraphQLInterfaceType],
+            self,
+            field: GraphQLField,
+            object_type: Union[GraphQLObjectType, GraphQLInterfaceType],
     ):
         pass
 

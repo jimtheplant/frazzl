@@ -6,10 +6,9 @@ const yargs = require("yargs");
 function parse_service_config(service) {
     const service_config = {};
     service_config.name = service.service_name;
-    if(service.type === "external"){
+    if (service.type === "external") {
         service_config.url = service.url;
-    }
-    else if(service.type === "local"){
+    } else if (service.type === "local") {
         let port = service.port;
         service_config.url = `http://localhost:${port}`
     }
@@ -22,12 +21,11 @@ async function start_gateway(federation) {
     const gateway = new ApolloGateway({
         serviceList: serviceList
     });
-    try{
-        gatewayConfig = await gateway.load();
+    try {
+        const gatewayConfig = await gateway.load();
         const server = new ApolloServer({...gatewayConfig, subscriptions: false});
         server.listen();
-    }
-    catch (e) {
+    } catch (e) {
         console.log("Apollo Gateway could not be started. Exiting...");
         console.log(e);
         process.exit(1);
@@ -47,7 +45,7 @@ argv = yargs
                 const apollo_config = JSON.parse(fs.readFileSync(args.config));
                 start_gateway(apollo_config.federation)
             } catch (e) {
-                if(e.code !== "MODULE_NOT_FOUND") throw e;
+                if (e.code !== "MODULE_NOT_FOUND") throw e;
                 console.log(args.config);
                 console.log("Config file could not be loaded... exiting");
                 process.exit(1);

@@ -1,11 +1,12 @@
-import sys
-import os
-from ariadne.asgi import GraphQL
-import uvicorn
-import subprocess
-import multiprocessing
-import tempfile
 import json
+import multiprocessing
+import os
+import subprocess
+import sys
+import tempfile
+
+import uvicorn
+from ariadne.asgi import GraphQL
 
 LAUNCHED_SERVICES = []
 federation = []
@@ -13,6 +14,7 @@ GATEWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "gateway")
 
 
 class ServiceTypes:
+    SELF = "self"
     EXTERNAL = "external"
     MODULE = "module"
     LOCAL = "local"
@@ -20,14 +22,15 @@ class ServiceTypes:
 
 def print_info(config):
     global federation
-    service_name = config.APP_SERVICE.service_name
+    service_name = config.CONFIG["service"]["service_name"]
     print("Starting {0}".format(service_name))
     if len(federation) > 0:
         print("{0}'s federation is: ".format(service_name))
         for service_config in federation:
             service_type = service_config["type"]
             if service_type is ServiceTypes.LOCAL:
-                federation_info = ServiceTypes.LOCAL + " at port " + str(service_config["port"]) + " using module: " + service_config["module_name"]
+                federation_info = ServiceTypes.LOCAL + " at port " + str(service_config["port"]) + " using module: " + \
+                                  service_config["module_name"]
             elif service_type is ServiceTypes.EXTERNAL:
                 federation_info = ServiceTypes.EXTERNAL + " at " + service_config["url"]
             elif service_type is ServiceTypes.MODULE:
@@ -56,7 +59,9 @@ def start_local(service_config):
 
 def create_tempfile(config):
     config_file = tempfile.mkstemp()
-    apollo_config = {"federation": config.FEDERATION}
+    apollo_config = {"federation": []}
+    apollo_config["federation"].extend(config.CONFIG["federation"])
+    apollo_config["federation"].append(config.CONFIG["service"])
     json.dump(apollo_config, open(config_file[1], "w"), ensure_ascii=False)
     return config_file[1]
 
@@ -69,14 +74,15 @@ def start_gateway(config):
         activate_script = "activate"
     activate_cmd = [os.path.join(GATEWAY_PATH, "node", "Scripts", activate_script)]
     start_commands = " & node index.js start".split()
-    process = subprocess.Popen(activate_cmd + start_commands + [config_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout, stderr=sys.stderr)
+    process = subprocess.Popen(activate_cmd + start_commands + [config_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout,
+                               stderr=sys.stderr)
     process.wait()
 
 
 def start_services(config):
     global federation
     services = []
-    federation = config.FEDERATION
+    federation = config.CONFIG["federation"]
     print_info(config)
     if len(federation) > 0:
         for service_config in federation:
@@ -89,7 +95,7 @@ def start_services(config):
                 pass
             else:
                 raise Exception()
-    services.append(start_service(config.APP_SERVICE, int(config.APP_PORT)))
+    services.append(start_service(config.APP_SERVICE, config.APP_PORT))
     start_gateway(config)
     for service in services:
         service.kill()

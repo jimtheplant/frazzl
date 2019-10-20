@@ -1,7 +1,8 @@
+import os
+import subprocess
+
 from setuptools import setup, find_packages
 from setuptools.command.install import install
-import subprocess
-import os
 
 
 class PostInstallCommand(install):
@@ -20,7 +21,7 @@ class PostInstallCommand(install):
 
 setup(
     name="graphql_booster",
-    version="0.0.1a",
+    version="0.0.1a0",
     author="jimtheplant",
     author_email="jimtheplant1@gmail.com",
     packages=find_packages(),

@@ -1,7 +1,7 @@
 from ariadne import ObjectType, make_executable_schema, UnionType
+
 from .directive import *
 from .scalars import _FieldSet, _Any
-
 
 ENTITY_QUERY = "_entities(representations: [_Any!]!): [_Entity]!"
 SERVICE_TEMPLATE = """
@@ -81,7 +81,9 @@ class Service:
             entity_query_str = ENTITY_QUERY
             self.federation_types.append(entity_union)
         template = template.format(union_entities=entity_union_str, entity_query=entity_query_str, query_str=self.sdl)
-        return make_executable_schema(template, [self.query, _Any, _FieldSet] + [ObjectType(entity_name) for entity_name in self.entities.keys()] + self.federation_types,
+        return make_executable_schema(template,
+                                      [self.query, _Any, _FieldSet] + [ObjectType(entity_name) for entity_name in
+                                                                       self.entities.keys()] + self.federation_types,
                                       directives=self.directives)
 
     def _make_entity_str(self):
@@ -96,4 +98,3 @@ class Service:
 
     def add_entity(self, entity_type):
         self.entities[entity_type.name] = entity_type
-
