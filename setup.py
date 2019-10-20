@@ -19,8 +19,8 @@ class PostInstallCommand(install):
 
 
 setup(
-    name="graphqlflow",
-    version="0.0.1",
+    name="graphql_booster",
+    version="0.0.1a",
     author="jimtheplant",
     author_email="jimtheplant1@gmail.com",
     packages=find_packages(),

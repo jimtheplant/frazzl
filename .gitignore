@@ -5,7 +5,7 @@ gateway/node_modules/
 gateway/package-lock.json
 
 sandbox_app
-graphqlflow/services/sandbox_app2
+graphql_booster/services/sandbox_app2
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
