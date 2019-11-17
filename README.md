@@ -1,13 +1,13 @@
-# graphql-booster
+# frazzl
 
 ## About
-GraphQL Booster is a graphql framework for implementing the 
+Frazzl is a graphql framework for implementing the 
 apollo federation [specification](https://www.apollographql.com/docs/apollo-server/federation/introduction/).
 The framework aims to make developing microservices for graphql servers easier. 
 It is currently in the very early prototyping stage and actively seeking contributions.
 
 ## Table of contents
-[graphql-booster](#graphql-booster)
+[frazzl](#frazzl)
 * [About](#about)
 * [Requirements](#requirements)
 * [Installation](#installation)
@@ -31,14 +31,20 @@ It is currently in the very early prototyping stage and actively seeking contrib
 
 ## Installation
 
-GraphQL Booster can be installed from [pip](https://pypi.org/project/pip/)
+Frazzl can be installed from [pip](https://pypi.org/project/pip/)
 
 ```
-> pip install graphql-booster
+> pip install frazzl
 ``` 
 
+The framework must be initialized using the command line tool.
+
+```
+> frazzl init
+```
+
 ## Features
-GraphQL booster has several major features implemented or on the roadmap.
+Frazzl has several major features implemented or on the roadmap.
 
 #### Apollo Federation specification
 A basic implementation of the specification is available that allows developers to 
@@ -55,11 +61,11 @@ inputs and outputs for all field resolvers.
 * Security helpers
 
 #### Command Line Tooling (Future)
-Similar to [Django](https://www.djangoproject.com/), GraphQL booster will have a command line tool kit for project creation. 
+Similar to [Django](https://www.djangoproject.com/), frazzl will have a command line tool kit for project creation. 
 Create a simple app for a small tutorial project or use a user created template.
 
 #### Service Modularity
-Have local services dependent on each other? Define where it's located and GraphQL Booster will integrate it seamlessly into 
+Have local services dependent on each other? Define where it's located and frazzl will integrate it seamlessly into 
 its gateway endpoint. Don't need a full service but want to access already created resolvers? 
 Define it in your config and let the framework do the rest. 
 
@@ -87,11 +93,11 @@ the [apollo-gateway](https://github.com/apollographql/apollo-server/tree/master/
 node will be able to unify all active microservice schemas into a single queryable endpoint.
 
 This project helps with the development of these dependency services. A user can define a *mostly* normal graphql schema,
-and the framework will implement the specification on top. GraphQL Booster can also start a local gateway node and other 
+and the framework will implement the specification on top. Frazzl can also start a local gateway node and other 
 Booster services locally to assist in development and testing. 
 
 ### Project Structure
-GraphQL Booster takes inspiration from [django](https://www.djangoproject.com/) for it's recommended project structure.
+Frazzl takes inspiration from [django](https://www.djangoproject.com/) for it's recommended project structure.
  
 ### "Hello World" App
 TODO: Example
