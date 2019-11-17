@@ -10,7 +10,7 @@ from ariadne.asgi import GraphQL
 
 LAUNCHED_SERVICES = []
 federation = []
-GATEWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "gateway")
+GATEWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "gateway")
 
 
 class ServiceTypes:
@@ -68,13 +68,8 @@ def create_tempfile(config):
 
 def start_gateway(config):
     config_file_path = create_tempfile(config)
-    if os.name == "nt":
-        activate_script = "activate.bat"
-    else:
-        activate_script = "activate"
-    activate_cmd = [os.path.join(GATEWAY_PATH, "node", "Scripts", activate_script)]
-    start_commands = " & node index.js start".split()
-    process = subprocess.Popen(activate_cmd + start_commands + [config_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout,
+    start_commands = "node index.js start".split()
+    process = subprocess.Popen(start_commands + [config_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout,
                                stderr=sys.stderr)
     process.wait()
 
