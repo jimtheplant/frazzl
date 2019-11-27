@@ -4,8 +4,10 @@ gateway/node/
 gateway/node_modules/
 gateway/package-lock.json
 
-sandbox_app
+sandbox_app/*
 graphql_booster/services/sandbox_app2
+
+test_swarm.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
