@@ -1,25 +1,11 @@
-const {ApolloServer, RemoteGraphQLDataSource} = require("apollo-server");
+const {ApolloServer} = require("apollo-server");
 const {ApolloGateway} = require("@apollo/gateway");
 const fs = require("fs");
 const yargs = require("yargs");
 
-function parse_service_config(service) {
-    const service_config = {};
-    service_config.name = service.service_name;
-    if (service.type === "external") {
-        service_config.url = service.url;
-    } else if (service.type === "local") {
-        let port = service.port;
-        service_config.url = `http://localhost:${port}`
-    }
-    return service_config;
-}
-
-
 async function start_gateway(federation) {
-    let serviceList = federation.map(item => parse_service_config(item));
     const gateway = new ApolloGateway({
-        serviceList: serviceList
+        serviceList: federation
     });
     try {
         const gatewayConfig = await gateway.load();

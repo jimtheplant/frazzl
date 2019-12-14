@@ -40,3 +40,10 @@ def __make_entity_str(entities):
 
 def make_template(schema):
     return SERVICE_TEMPLATE.format(union_entities="", entity_query="", query_str=schema)
+
+
+def service_resolver(schema):
+    def _service_resolver(*_):
+        return {"sdl": schema}
+
+    return _service_resolver

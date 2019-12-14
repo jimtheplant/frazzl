@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
-from frazzl.constants import VERSION
+
+from frazzl.core.constants import VERSION
 
 setup(
     name="frazzl",
@@ -18,6 +19,7 @@ setup(
         "ariadne==0.7",
         "uvicorn==0.10.8",
         "nodeenv==1.3.3",
-        "click==7.0"
+        "click==7.0",
+        "pyyaml==5.2"
     ]
 )

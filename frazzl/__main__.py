@@ -1,7 +1,9 @@
 import os
 import subprocess
+
 import click
-from .constants import VERSION
+
+from frazzl.core.constants import VERSION
 
 
 @click.group()
