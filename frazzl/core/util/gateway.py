@@ -9,8 +9,7 @@ GATEWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "gateway")
 
 def create_tempfile(nodes):
     config_file = tempfile.mkstemp()
-    apollo_config = {"federation": [{"name": node.name, "url": node.url} for node in nodes]}
-    print(apollo_config)
+    apollo_config = {"federation": [{"name": node_name, "url": node.context.url} for node_name, node in nodes.items()]}
     json.dump(apollo_config, open(config_file[1], "w"), ensure_ascii=False)
     return config_file[1]
 

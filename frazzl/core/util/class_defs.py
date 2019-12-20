@@ -1,21 +1,25 @@
-def call_supers(obj_func, wrapper):
-    return wrapper(obj_func)
+class Context:
+    def __init__(self):
+        self.context = {}
+
+    def __getitem__(self, item):
+        return self.context[item]
+
+    def __getattr__(self, item):
+        return self.context.get(item)
+
+    def update(self, other):
+        self.context.update(other)
 
 
-def validate_class(cls):
-    cls.validate = call_supers(cls.validate, validate)
-    cls.context = {}
-    return cls
+class WithContext:
+    def __init__(self):
+        self._context = Context()
 
+    @property
+    def context(self):
+        return self._context
 
-def validate(func):
-    def _validate(cls, definition):
-        if object not in cls.__bases__:
-            for parent_type in cls.__bases__:
-                parent_validate_result = parent_type.validate(definition)
-                cls.context.update(parent_validate_result)
-        validate_result = func(definition)
-        cls.context.update(validate_result)
-        return cls.context
-
-    return classmethod(_validate)
+    @context.setter
+    def context(self, value):
+        self._context.update(value)

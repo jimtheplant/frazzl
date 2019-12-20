@@ -6,7 +6,7 @@ gateway/package-lock.json
 
 sandbox_app/*
 graphql_booster/services/sandbox_app2
-
+.frazzl*
 test_swarm.py
 
 # Byte-compiled / optimized / DLL files

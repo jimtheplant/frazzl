@@ -2,14 +2,11 @@ settings:
   submodules:
     - app
     - config
-gateway:
-  type: gateway
-  nodes:
-    - service1
+  gateway: false
 
 nodes:
   service1:
-    type: app_node
+    type: appNode
     app: app
     module: sandbox_app
     port: 8000

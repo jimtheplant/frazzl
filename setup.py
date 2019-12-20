@@ -20,6 +20,7 @@ setup(
         "uvicorn==0.10.8",
         "nodeenv==1.3.3",
         "click==7.0",
-        "pyyaml==5.2"
+        "pyyaml==5.2",
+        "blinker"
     ]
 )
