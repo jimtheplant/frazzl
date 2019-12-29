@@ -1,3 +1,5 @@
+import atexit
+
 import yaml
 
 from .gateway import GatewayNode
@@ -72,11 +74,12 @@ class FrazzlSwarm:
         for node in self.nodes.values():
             node.start()
 
-        while not self.ready():
-            continue
-
         if self.gateway_node:
             self.gateway_node.start()
+
+        atexit.register(self.stop)
+        for proc in self.processes:
+            proc.join()
 
     def nodes_ready(self):
         for node in self.nodes.values():
@@ -87,12 +90,8 @@ class FrazzlSwarm:
     def ready(self):
         return (not self.gateway_node or self.gateway_node.is_alive()) and self.nodes_ready()
 
-
-def start_swarm(swarm_definition):
-    swarm = FrazzlSwarm()
-    swarm.load_swarm(swarm_definition)
-    try:
-        yield swarm
-    except RuntimeError:
-        swarm.stop()
-    swarm.start_swarm()
+    def stop(self):
+        for node in self.nodes.values():
+            node.stop()
+            if isinstance(node, LocalNode):
+                node.process.join()

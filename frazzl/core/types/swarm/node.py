@@ -1,9 +1,8 @@
 from importlib import import_module
 from multiprocessing import Process
-from time import sleep
 
 from frazzl.core.exceptions import ConfigError
-from frazzl.core.types.app import Frazzl, start_app_proc_target
+from frazzl.core.types.app import Frazzl, start_app
 from frazzl.core.types.config import AppConfig
 from frazzl.core.types.swarm.settings import Modules
 from frazzl.core.util.class_defs import WithContext
@@ -54,13 +53,12 @@ class LocalNode(FrazzlNode):
 
     def start(self):
         self.process.start()
-        print(self.process.pid)
-        sleep(5)
-        self.stop()
 
     def stop(self):
         self.process.terminate()
 
+    def join(self):
+        self.process.join()
 
     @classmethod
     def validate(cls, definition, context):
@@ -94,13 +92,13 @@ class AppModuleNode(LocalNode):
 
     def load(self):
         self.app = self.context.app
-        self.process = Process(target=start_app_proc_target, args=[self.app])
+        self.process = Process(target=start_app, args=[self.app])
 
     @classmethod
     def validate(cls, definition, context):
         app_name = definition.get("app", None)
         if not app_name:
-            raise ConfigError(f"The {cls.config_typename} definition must specify the app_name field. "
+            raise ConfigError(f"The {cls.config_typename} definition must specify the app field. "
                               f"None were found.")
 
         for submodule in context.modules:
@@ -124,7 +122,7 @@ class ConfigNode(LocalNode):
         config_type = self.context.config
         self.config_obj = config_type()
         self.app = Frazzl(str(id(self)), config=self.config_obj)
-        self.process = Process(target=start_app_proc_target, args=[self.app])
+        self.process = Process(target=start_app, args=[self.app])
 
     @classmethod
     def validate(cls, definition, context):

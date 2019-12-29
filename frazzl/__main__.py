@@ -23,12 +23,21 @@ def init():
 
 @cli.command()
 @click.option("-g", "--gateway", "gateway", default=False, show_default=True, is_flag=True)
-@click.argument("modules", nargs=-1, type=str)
+@click.argument("modules", nargs=-1, type=str, required=True)
 def start(modules, gateway):
     swarm_definition = make_swarm_definition(gateway, modules)
     swarm = FrazzlSwarm()
     swarm.load_swarm(swarm_definition)
     swarm.start_swarm()
+
+
+@cli.command()
+@click.option("-g", "--gateway", "gateway", default=False, show_default=True, is_flag=True)
+@click.argument("modules", nargs=-1, type=str, required=True)
+def list(modules, gateway):
+    swarm_definition = make_swarm_definition(gateway, modules)
+    swarm = FrazzlSwarm()
+    swarm.validate(swarm_definition)
 
 
 if __name__ == '__main__':

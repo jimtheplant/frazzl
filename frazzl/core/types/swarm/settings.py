@@ -28,7 +28,7 @@ class Modules(SwarmSetting):
         for search_attr in self.context[self.setting_name]:
             try:
                 sub_modules.append(import_module(f"{module.__name__}.{search_attr}"))
-            except ImportError:
+            except ModuleNotFoundError:
                 continue
         return sub_modules
 
