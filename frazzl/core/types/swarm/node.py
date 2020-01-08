@@ -1,25 +1,15 @@
-from importlib import import_module
-from multiprocessing import Process
+import sys
+from multiprocessing import set_start_method
 
 from frazzl.core.exceptions import ConfigError
-from frazzl.core.types.app import Frazzl, start_app
-from frazzl.core.types.config import AppConfig
-from frazzl.core.types.swarm.settings import Modules
-from frazzl.core.util.class_defs import WithContext
+from frazzl.core.types.app import Frazzl
+from frazzl.core.util.class_defs import FrazzlBuilder
+from frazzl.core.util.swarm import get_hashed_app_name
+
+set_start_method("spawn")
 
 
-class FrazzlNode(WithContext):
-    config_typename = None
-
-    def __init__(self, definition, settings):
-        super(FrazzlNode, self).__init__()
-        self.settings = settings
-        self.context = {"settings": settings}
-        self.context = FrazzlNode.validate(definition, self.context)
-
-    def load(self):
-        raise NotImplementedError
-
+class FrazzlNode(FrazzlBuilder):
     def is_alive(self):
         raise NotImplementedError
 
@@ -30,111 +20,64 @@ class FrazzlNode(WithContext):
         raise NotImplementedError
 
     @classmethod
-    def validate(cls, definition, context):
-        node_type = definition.get("type", None)
-        if node_type is None:
-            raise ConfigError(f"All nodes must define a type. Got: {definition} that has no type")
-        return {"type": node_type}
+    def build(cls, context):
+        return {}
+
+    @classmethod
+    def validate(cls, definition):
+        return {}
+
+    def __str__(self):
+        return f"{self.context}"
 
 
 class LocalNode(FrazzlNode):
-
-    def __init__(self, definition, settings):
-        super(LocalNode, self).__init__(definition, settings)
-        self.process = None
-        self.app = None
-        self.context = LocalNode.validate(definition, self.context)
-
-    def load(self):
-        raise NotImplementedError
-
     def is_alive(self):
-        return self.process.is_alive()
+        return self.context.process.is_alive()
 
     def start(self):
-        self.process.start()
+        self.context.process.start()
 
     def stop(self):
-        self.process.terminate()
+        self.context.process.terminate()
 
     def join(self):
-        self.process.join()
+        self.context.process.join()
 
     @classmethod
-    def validate(cls, definition, context):
-        module_name = definition.get("module")
-        if not module_name:
-            raise ConfigError("No module present in the definition.")
-        try:
-            module = import_module(module_name)
-        except ImportError:
-            raise ConfigError(f"Module {module_name} was not found")
+    def validate(cls, definition):
+        node_name = definition.get("node_name")
+        settings = definition.get("settings", None)
+        if not settings:
+            raise ConfigError(f"The node definition for {node_name} must specify the settings field.")
 
-        port = definition.get("port")
+        port = settings.get("port", None)
         if not port:
-            raise ConfigError("All local nodes must define a port.")
-        try:
-            port = int(port)
-        except ValueError:
-            raise ConfigError("All local nodes must define a port as a valid integer.")
+            raise ConfigError(f"The settings for {node_name} must specify the port field.")
 
-        modules_setting = context.settings[Modules.setting_name]
-        submodules = modules_setting.search_submodules(module)
-        return {"modules": submodules + [module], "port": port, "url": f"http://localhost:{port}/"}
+        return {"settings": settings}
 
 
-class AppModuleNode(LocalNode):
-    config_typename = "appNode"
-
-    def __init__(self, definition, settings):
-        super(AppModuleNode, self).__init__(definition, settings)
-        self.context = AppModuleNode.validate(definition, self.context)
-
-    def load(self):
-        self.app = self.context.app
-        self.process = Process(target=start_app, args=[self.app])
+class AppNode(LocalNode):
+    def build(cls, context):
+        # context.app
+        # self.process = Process(target=start_app, args=[self.app])
+        pass
 
     @classmethod
-    def validate(cls, definition, context):
-        app_name = definition.get("app", None)
-        if not app_name:
-            raise ConfigError(f"The {cls.config_typename} definition must specify the app field. "
-                              f"None were found.")
+    def validate(cls, definition):
+        node_name = definition.get("name")
+        local_node_context = LocalNode.validate(definition)
 
-        for submodule in context.modules:
-            app = getattr(submodule, app_name, None)
-            if app and isinstance(app, Frazzl):
-                return {"app": app}
+        namespace = definition.get("namespace", None)
+        if not namespace:
+            raise ConfigError(f"The node definition for {node_name} must specify the namespace field.")
 
-        raise ConfigError(f"Could not find have a valid config object named {app_name}. Modules searched:"
-                          f"{[module.__name__ for module in context.modules]}")
+        hashed_app_name = get_hashed_app_name(node_name)
+        __import__(namespace)
+        app = getattr(sys.modules["__main__"], hashed_app_name, None)
+        if app and isinstance(app, Frazzl):
+            local_node_context.update({"app": app})
+            return local_node_context
 
-
-class ConfigNode(LocalNode):
-    config_typename = "configNode"
-
-    def __init__(self, definition, settings):
-        super(ConfigNode, self).__init__(definition, settings)
-        self.config_obj = None
-        self.context = ConfigNode.validate(definition, self.context)
-
-    def load(self):
-        config_type = self.context.config
-        self.config_obj = config_type()
-        self.app = Frazzl(str(id(self)), config=self.config_obj)
-        self.process = Process(target=start_app, args=[self.app])
-
-    @classmethod
-    def validate(cls, definition, context):
-        config_name = definition.get("config", None)
-        if not config_name:
-            raise ConfigError(f"The {cls.config_typename} definition must specify the app_name field. "
-                              f"None were found.")
-
-        for submodule in context.modules:
-            config = getattr(submodule, config_name, None)
-            if config and issubclass(config, AppConfig):
-                return {"config": config}
-
-        raise ConfigError(f"Could not find have a valid config object named {config_name}. Modules searched:"
-                          f"{[module.__name__ for module in context.modules]}")
+        raise ConfigError(f"Could not find an app named {node_name} in the namespace {namespace}.")

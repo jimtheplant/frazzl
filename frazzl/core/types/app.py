@@ -8,6 +8,7 @@ import uvicorn
 from frazzl.core.exceptions import ConfigError
 from frazzl.core.frazzl_asgi import FrazzlGQL
 from frazzl.core.types.config import AppConfig
+from frazzl.core.util.swarm import get_hashed_app_name
 
 
 class Frazzl:
@@ -23,6 +24,7 @@ class Frazzl:
         self.config = config
         self.name = name
         self._graphql_types = {}
+        setattr(sys.modules['__main__'], get_hashed_app_name(name), self)
 
     def start(self):
         self.config.startup()
@@ -32,6 +34,9 @@ class Frazzl:
 
     def __overwrite_config(self, attr, value):
         setattr(self.config, attr, value)
+
+    def __str__(self):
+        return self.config.schema
 
 
 def start_app(app):

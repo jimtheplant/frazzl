@@ -8,9 +8,9 @@ from .settings import SwarmSettings
 
 
 class FrazzlSwarm:
-    default_node_types = [ConfigNode, AppModuleNode]
+    default_node_types = [AppNode]
     gateway_node_type = GatewayNode
-    __all_node_types = [ConfigNode, AppModuleNode, GatewayNode, LocalNode, FrazzlNode]
+    __all_node_types = [AppNode, GatewayNode, LocalNode, FrazzlNode]
 
     def __init__(self, node_types: list = None):
         self.gateway_node = None
@@ -24,13 +24,33 @@ class FrazzlSwarm:
 
         self.processes = []
 
+    def __str__(self):
+        nodes_str = ""
+        for node in self.nodes.values():
+            nodes_str += str(node)
+        return nodes_str
+
+    @classmethod
+    def swarm_definition_from_yaml(cls, filename):
+        try:
+            with open(filename) as swarm_file:
+                swarm_definition = yaml.load(swarm_file, yaml.BaseLoader)
+        except FileNotFoundError:
+            raise ConfigError(f"Swarm file {filename}, was not found")
+        except RuntimeError:
+            raise ConfigError(f"Error reading swarm file {filename}")
+
+        return swarm_definition
+
     def load_swarm(self, swarm_definition):
         if type(swarm_definition) is dict:
             self.swarm_definition = swarm_definition
         else:
             with open(swarm_definition) as swarm_file:
                 self.swarm_definition = yaml.load(swarm_file, yaml.BaseLoader)
-        self.nodes = self.validate(self.swarm_definition)
+        swarm_prototype = self.validate(self.swarm_definition)
+        self.nodes = swarm_prototype["nodes"]
+        self.swarm_settings = swarm_prototype["settings"]
         self.load_nodes()
         if self.gateway_node:
             self.gateway_node.load()
@@ -41,33 +61,28 @@ class FrazzlSwarm:
             if isinstance(node, LocalNode):
                 self.processes.append(node.process)
 
-    def validate(self, swarm_definition):
-        settings = SwarmSettings.validate(swarm_definition.get("settings", None))
-
-        if not swarm_definition.get("gateway") and settings.gateway:
-            raise ConfigError("A swarm must have a gateway attribute in it's definition.")
-        if not swarm_definition.get("nodes"):
-            raise ConfigError("A swarm must have a nodes attribute in it's definition.")
-
+    @classmethod
+    def validate(cls, swarm_definition):
+        settings = None
+        gateway = None
         nodes = {}
-        node_definitions = swarm_definition.get("nodes")
-        for node_name, node_definition in node_definitions.items():
-            if type(node_definition) is not dict:
-                raise ConfigError(f"{node_name} has an incorrect node definition.")
+        for key, value in swarm_definition.items():
+            if key == "settings":
+                settings = SwarmSettings.validate(value)
+                swarm_setting = SwarmSettings.build(value)
+            elif key == "gateway":
+                gateway = GatewayNode.validate(dict(name=key, **value))
+            else:
+                nodes[key] = cls.validate_node(key, value)
+        return {"settings": settings, "gateway": gateway, "nodes": nodes}
 
-            node_typename = node_definition.get("type")
-            if node_definition.get("type") is None:
-                raise ConfigError(f"{node_name} has an incorrect node definition. "
-                                  "Every node must have a type attribute. "
-                                  f"Got: {node_definition}")
-            node_type = self.node_types.get(node_typename)
-            node = node_type(node_definition, settings)
-            nodes[node_name] = node
+    @classmethod
+    def validate_node(cls, node_name, node_definition):
+        if "namespace" in node_definition.keys():
+            node = AppNode.validate(dict(name=node_name, **node_definition))
+            return node
 
-        if settings.gateway:
-            self.gateway_node = self.gateway_node_type(swarm_definition.get("gateway"), settings, nodes)
-
-        return nodes
+        raise ConfigError(f"The node {node_name} did not match a definition for any supported nodes.")
 
     def start_swarm(self):
 

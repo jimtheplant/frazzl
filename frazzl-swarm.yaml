@@ -1,0 +1,5 @@
+testing:
+  settings:
+    port: 8000
+  namespace: sandbox_app.app
+

@@ -1,88 +1,91 @@
-from importlib import import_module
-
 from frazzl.core.exceptions import ConfigError
-from frazzl.core.util.class_defs import WithContext
+from frazzl.core.util.class_defs import FrazzlBuilder
 
 
-class SwarmSetting(WithContext):
-    setting_name = None
-
-    def __init__(self, definition):
-        super(SwarmSetting, self).__init__()
-        self.context = SwarmSetting.validate(definition, self.context)
+class SwarmSetting(FrazzlBuilder):
+    setting_key = None
 
     @classmethod
-    def validate(cls, definition, context):
+    def build(cls, context):
+        return cls(context)
+
+    @classmethod
+    def validate(cls, definition):
         return {}
 
 
-class Modules(SwarmSetting):
-    setting_name = "submodules"
-
-    def __init__(self, definition):
-        super(Modules, self).__init__(definition)
-        self.context = Modules.validate(definition, self.context)
-
-    def search_submodules(self, module):
-        sub_modules = []
-        for search_attr in self.context[self.setting_name]:
-            try:
-                sub_modules.append(import_module(f"{module.__name__}.{search_attr}"))
-            except ModuleNotFoundError:
-                continue
-        return sub_modules
+class Environment(SwarmSetting):
 
     @classmethod
-    def validate(cls, definition, context):
-        if definition is not None and type(definition) is not list:
-            raise ConfigError("If overwriting the modules setting, it must be a list in the settings file. "
-                              f"Got {definition}")
-
-        return {cls.setting_name: [] if not definition else definition}
-
-
-class GatewayProtocol(SwarmSetting):
-    setting_name = "gateway"
-    default_setting = True
-
-    def __init__(self, definition):
-        super(GatewayProtocol, self).__init__(definition)
-        self.context = GatewayProtocol.validate(definition, self.context)
+    def build(cls, context):
+        logging_definition = context[LoggingConfig.setting_key]
+        context[LoggingConfig.setting_key] = LoggingConfig.build(logging_definition)
+        return cls(context)
 
     @classmethod
-    def validate(cls, definition, context):
-        if definition and len(definition) > 0:
-            return {cls.setting_name: definition.lower() == "true"}
-        return {cls.setting_name: cls.default_setting}
+    def validate(cls, definition):
+        if LoggingConfig.setting_key not in definition.keys():
+            raise ConfigError(f"The {cls.setting_key} environment must specify a logging level.")
+
+        LoggingConfig.validate(definition[LoggingConfig.setting_key])
+        return definition
 
 
-class SwarmSettings:
-    setting_types = []
+class Development(Environment):
+    setting_key = "development"
 
-    def __init__(self, settings):
-        self.__setting_instances = settings
-        for setting_name, setting in settings.items():
-            setattr(self.__class__, setting_name, property(lambda inst: setting.context[setting_name]))
 
-    def __getitem__(self, item):
-        return self.__setting_instances[item]
-
-    @classmethod
-    def validate(cls, settings_definition):
-        if settings_definition is not None and type(settings_definition) is not dict:
-            raise ConfigError("A swarm that defines global settings should have settings attributes in its definition")
-
-        settings = {}
-        for setting_type in cls.setting_types:
-            settings[setting_type.setting_name] = setting_type(settings_definition.get(setting_type.setting_name, None))
-
-        return SwarmSettings(settings)
+class LoggingConfig(SwarmSetting):
+    setting_key = "loggingLevel"
+    logging_levels = ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]
 
     @classmethod
-    def register_setting_types(cls, setting_types):
-        for setting_type in setting_types:
-            if setting_type not in cls.setting_types:
-                cls.setting_types.append(setting_type)
+    def build(cls, context):
+        # TODO: Add logging
+        return cls(context)
+
+    @classmethod
+    def validate(cls, definition):
+        if definition not in cls.logging_levels:
+            raise ConfigError(f"Must specify a valid logging level. Got: {definition}, "
+                              f"Options {cls.logging_levels}")
+
+        return {cls.setting_key: definition}
 
 
-SwarmSettings.register_setting_types([Modules, GatewayProtocol])
+class EnvironmentSetting(SwarmSetting):
+    setting_key = "environment"
+
+    environment_types = [Development.setting_key]
+
+    @classmethod
+    def validate(cls, definition):
+        if definition not in cls.environment_types:
+            raise ConfigError(f"Environment setting must be one of the following: {cls.environment_types}")
+        return {cls.setting_key: definition}
+
+
+class SwarmSettings(FrazzlBuilder):
+    environments = {env.setting_key: env for env in [Development]}
+
+    @classmethod
+    def validate(cls, definition):
+        if definition is not None and type(definition) is not dict:
+            raise ConfigError("The swarm did not define any global settings or the settings were not valid. "
+                              "Make sure you have run: \n\tfrazzl init\n"
+                              "to ensure the default profile has been created.")
+
+        env = definition.get("environment", None)
+        if not env:
+            raise ConfigError("The environment field was not found on the settings definition.")
+
+        EnvironmentSetting.validate(env)
+        cls.environments[env].validate(definition[env])
+        return definition
+
+    @classmethod
+    def build(cls, context):
+        environment_setting = EnvironmentSetting.build(context[EnvironmentSetting.setting_key])
+        environment_type = cls.environments[environment_setting.context[EnvironmentSetting.setting_key]]
+        environment = environment_type.build(context[environment_type.setting_key])
+        return {EnvironmentSetting.setting_key: environment_setting, environment_type.setting_key: environment}
