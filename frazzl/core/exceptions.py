@@ -4,3 +4,7 @@ class FrazzlException(Exception):
 
 class ConfigError(FrazzlException, RuntimeError):
     pass
+
+
+class BuilderError(FrazzlException):
+    pass

@@ -14,8 +14,8 @@ def create_tempfile(nodes):
     return config_file[1]
 
 
-def start_gateway(config_file_path):
+def start_gateway(temp_file_path):
     start_commands = "node index.js start".split()
-    process = subprocess.Popen(start_commands + [config_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout,
+    process = subprocess.Popen(start_commands + [temp_file_path], cwd=GATEWAY_PATH, stdout=sys.stdout,
                                stderr=sys.stderr)
     process.wait()

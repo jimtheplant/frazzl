@@ -1,34 +1,61 @@
 import atexit
+import contextlib
 
 import yaml
 
+from frazzl.core.exceptions import ConfigError
 from .gateway import GatewayNode
 from .node import *
 from .settings import SwarmSettings
 
 
 class FrazzlSwarm:
-    default_node_types = [AppNode]
-    gateway_node_type = GatewayNode
-    __all_node_types = [AppNode, GatewayNode, LocalNode, FrazzlNode]
-
-    def __init__(self, node_types: list = None):
+    def __init__(self, swarm_definition):
+        self.nodes = {}
         self.gateway_node = None
-        self.swarm_definition = None
-        self.swarm_settings = None
-        self.nodes = None
-        self.node_types = dict((node_type.config_typename, node_type)
-                               for node_type in self.default_node_types)
-        if node_types:
-            self.node_types.update(dict((node_type.config_typename, node_type) for node_type in node_types))
+        self.settings = None
+        self.swarm_definition = swarm_definition
 
-        self.processes = []
+    def build(self):
+        self._build_nodes()
+        return self
 
-    def __str__(self):
-        nodes_str = ""
+    @classmethod
+    @contextlib.contextmanager
+    def start_swarm(cls, definition, rebuild=False):
+        swarm = FrazzlSwarm(definition)
+        swarm.build()
+        yield swarm
+        if rebuild:
+            swarm.build()
+        swarm.start_nodes()
+
+    def start_nodes(self):
         for node in self.nodes.values():
-            nodes_str += str(node)
-        return nodes_str
+            node.start()
+        self.gateway.start()
+        atexit.register(self.stop)
+        for node in self.nodes.values():
+            node.context.process.join()
+
+    @classmethod
+    def validate(cls, swarm_definition):
+        return cls._validate(swarm_definition)
+
+    def _build_nodes(self):
+        for key, value in self.swarm_definition.items():
+            if key == "settings":
+                self.settings = SwarmSettings.build(value)
+            elif key == "gateway":
+                continue
+            else:
+                self._build_node(key, value)
+        gateway_definition = self.swarm_definition.get("gateway")
+        self.gateway = GatewayNode.build(dict(name="gateway", **gateway_definition), nodes=self.nodes)
+
+    def _build_node(self, node_name, node_definition):
+        if "namespace" in node_definition.keys():
+            self.nodes[node_name] = AppNode.build(dict(name=node_name, **node_definition))
 
     @classmethod
     def swarm_definition_from_yaml(cls, filename):
@@ -36,40 +63,17 @@ class FrazzlSwarm:
             with open(filename) as swarm_file:
                 swarm_definition = yaml.load(swarm_file, yaml.BaseLoader)
         except FileNotFoundError:
-            raise ConfigError(f"Swarm file {filename}, was not found")
-        except RuntimeError:
-            raise ConfigError(f"Error reading swarm file {filename}")
-
+            raise ConfigError(f"Swarm file {filename} was not found")
         return swarm_definition
 
-    def load_swarm(self, swarm_definition):
-        if type(swarm_definition) is dict:
-            self.swarm_definition = swarm_definition
-        else:
-            with open(swarm_definition) as swarm_file:
-                self.swarm_definition = yaml.load(swarm_file, yaml.BaseLoader)
-        swarm_prototype = self.validate(self.swarm_definition)
-        self.nodes = swarm_prototype["nodes"]
-        self.swarm_settings = swarm_prototype["settings"]
-        self.load_nodes()
-        if self.gateway_node:
-            self.gateway_node.load()
-
-    def load_nodes(self):
-        for node in self.nodes.values():
-            node.load()
-            if isinstance(node, LocalNode):
-                self.processes.append(node.process)
-
     @classmethod
-    def validate(cls, swarm_definition):
+    def _validate(cls, swarm_definition):
         settings = None
         gateway = None
         nodes = {}
         for key, value in swarm_definition.items():
             if key == "settings":
                 settings = SwarmSettings.validate(value)
-                swarm_setting = SwarmSettings.build(value)
             elif key == "gateway":
                 gateway = GatewayNode.validate(dict(name=key, **value))
             else:
@@ -79,31 +83,10 @@ class FrazzlSwarm:
     @classmethod
     def validate_node(cls, node_name, node_definition):
         if "namespace" in node_definition.keys():
-            node = AppNode.validate(dict(name=node_name, **node_definition))
-            return node
+            node_context = AppNode.validate(dict(name=node_name, **node_definition))
+            return node_context
 
         raise ConfigError(f"The node {node_name} did not match a definition for any supported nodes.")
-
-    def start_swarm(self):
-
-        for node in self.nodes.values():
-            node.start()
-
-        if self.gateway_node:
-            self.gateway_node.start()
-
-        atexit.register(self.stop)
-        for proc in self.processes:
-            proc.join()
-
-    def nodes_ready(self):
-        for node in self.nodes.values():
-            if not node.is_alive():
-                return False
-        return True
-
-    def ready(self):
-        return (not self.gateway_node or self.gateway_node.is_alive()) and self.nodes_ready()
 
     def stop(self):
         for node in self.nodes.values():

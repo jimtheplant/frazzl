@@ -39,10 +39,10 @@ class Frazzl:
         return self.config.schema
 
 
-def start_app(app):
+def start_app(app, port):
     temp_mod_name = str(uuid.uuid4().hex)
     spec = ModuleSpec(temp_mod_name, None)
     mod = module_from_spec(spec)
     mod._app = FrazzlGQL(app.config._create_schema(), app.start, app.stop)
     sys.modules[temp_mod_name] = mod
-    uvicorn.run(temp_mod_name + ":_app", port=app.config.port if app.config.port else 8000)
+    uvicorn.run(temp_mod_name + ":_app", port=port)

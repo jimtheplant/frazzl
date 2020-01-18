@@ -7,11 +7,23 @@ class SwarmSetting(FrazzlBuilder):
 
     @classmethod
     def build(cls, context):
-        return cls(context)
+        return context
 
     @classmethod
     def validate(cls, definition):
         return {}
+
+
+# TODO: Move Node settings to use builder such as SwarmSettings
+# class Port(SwarmSetting):
+#     @classmethod
+#     def validate(cls, definition):
+#         port = definition.get("port", None)
+#         try:
+#             port = int(port)
+#         except ValueError:
+#             raise ConfigError(f"Port given was not valid. Got: {port}")
+#         return {"port": port}
 
 
 class Environment(SwarmSetting):
@@ -20,7 +32,7 @@ class Environment(SwarmSetting):
     def build(cls, context):
         logging_definition = context[LoggingConfig.setting_key]
         context[LoggingConfig.setting_key] = LoggingConfig.build(logging_definition)
-        return cls(context)
+        return context
 
     @classmethod
     def validate(cls, definition):
@@ -42,7 +54,7 @@ class LoggingConfig(SwarmSetting):
     @classmethod
     def build(cls, context):
         # TODO: Add logging
-        return cls(context)
+        return context
 
     @classmethod
     def validate(cls, definition):
@@ -89,3 +101,4 @@ class SwarmSettings(FrazzlBuilder):
         environment_type = cls.environments[environment_setting.context[EnvironmentSetting.setting_key]]
         environment = environment_type.build(context[environment_type.setting_key])
         return {EnvironmentSetting.setting_key: environment_setting, environment_type.setting_key: environment}
+

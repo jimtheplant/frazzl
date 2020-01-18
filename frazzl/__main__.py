@@ -1,35 +1,38 @@
+import logging
 import os
 import subprocess
 
 import click
 import yaml
 
-
-def represent_none(self, _):
-    return self.represent_scalar('tag:yaml.org:null', '')
-
-
-yaml.add_representer(type(None), represent_none)
-
 from frazzl.core.constants import VERSION, DEFAULT_SWARM
-from frazzl.core.types.swarm.swarm import FrazzlSwarm
 from frazzl.core.exceptions import ConfigError
+from frazzl.core.types.swarm.swarm import FrazzlSwarm
+from frazzl.core.util.swarm import update_swarm_definition
+
+frazzl_logger = logging.getLogger("frazzl")
 
 
 @click.group()
 @click.version_option(version=VERSION)
 @click.option("--swarm-config", "-c", type=click.Path(), default="frazzl-swarm.yaml")
+@click.option("--verbose", "-v", type=click.BOOL, default=False)
 @click.pass_context
-def cli(ctx, swarm_config):
-    swarm_definition = {}
-    try:
-        swarm_definition = FrazzlSwarm.swarm_definition_from_yaml(".frazzl")
-    except ConfigError:
-        pass
-    except FileNotFoundError:
-        pass
-    swarm_definition.update(FrazzlSwarm.swarm_definition_from_yaml(swarm_config))
-    ctx.obj = {"swarm_definition": swarm_definition}
+def cli(ctx, swarm_config, verbose):
+    if verbose:
+        frazzl_logger.setLevel(logging.INFO)
+    if ctx.invoked_subcommand is not "init":
+        combined_definition = {}
+        try:
+            project_definition = FrazzlSwarm.swarm_definition_from_yaml(".frazzl")
+            combined_definition = update_swarm_definition(
+                project_definition,
+                FrazzlSwarm.swarm_definition_from_yaml(swarm_config)
+            )
+        except ConfigError as e:
+            frazzl_logger.warning(f"{str(e)}")
+            pass
+        ctx.obj = {"swarm_definition": combined_definition}
 
 
 @cli.command()
@@ -57,19 +60,17 @@ def update():
 
 
 @cli.command()
-@click.option("-g", "--gateway", "gateway", default=False, show_default=True, is_flag=True)
-@click.argument("modules", nargs=-1, type=str, required=True)
-def start(modules, gateway):
-    swarm_definition = make_swarm_definition(gateway, modules)
-    swarm = FrazzlSwarm()
-    swarm.load_swarm(swarm_definition)
-    swarm.start_swarm()
+@click.pass_context
+def start(ctx):
+    with FrazzlSwarm.start_swarm(ctx.obj["swarm_definition"]) as swarm:
+        pass
 
 
 @cli.command()
 @click.pass_context
 def ls(ctx):
-    print(FrazzlSwarm.validate(ctx.obj["swarm_definition"]))
+    context = FrazzlSwarm.validate(ctx.obj["swarm_definition"])
+    logging.getLogger("frazzl").info("testing")
 
 
 if __name__ == '__main__':

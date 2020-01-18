@@ -1,8 +1,8 @@
 import sys
-from multiprocessing import set_start_method
+from multiprocessing import set_start_method, Process
 
 from frazzl.core.exceptions import ConfigError
-from frazzl.core.types.app import Frazzl
+from frazzl.core.types.app import Frazzl, start_app
 from frazzl.core.util.class_defs import FrazzlBuilder
 from frazzl.core.util.swarm import get_hashed_app_name
 
@@ -33,16 +33,16 @@ class FrazzlNode(FrazzlBuilder):
 
 class LocalNode(FrazzlNode):
     def is_alive(self):
-        return self.context.process.is_alive()
+        return self.process.is_alive()
 
     def start(self):
-        self.context.process.start()
+        self.process.start()
 
     def stop(self):
-        self.context.process.terminate()
+        self.process.terminate()
 
     def join(self):
-        self.context.process.join()
+        self.process.join()
 
     @classmethod
     def validate(cls, definition):
@@ -54,15 +54,22 @@ class LocalNode(FrazzlNode):
         port = settings.get("port", None)
         if not port:
             raise ConfigError(f"The settings for {node_name} must specify the port field.")
-
+        try:
+            port = int(port)
+        except ValueError:
+            raise ConfigError(f"Port given was not valid. Got: {port}")
         return {"settings": settings}
 
 
 class AppNode(LocalNode):
+
+    @classmethod
     def build(cls, context):
-        # context.app
-        # self.process = Process(target=start_app, args=[self.app])
-        pass
+        port = context.settings.get("port", None)
+        port = int(port)
+        context.url = f"http://localhost:{port}"
+        context.process = Process(target=start_app, args=[context.app, port])
+        return context
 
     @classmethod
     def validate(cls, definition):
