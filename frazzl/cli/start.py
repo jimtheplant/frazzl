@@ -1,6 +1,7 @@
 import click
 
 from frazzl.cli.cli import cli
+from frazzl.core.exceptions import ConfigError
 from frazzl.core.types.swarm.gateway import GatewayNode
 from frazzl.core.types.swarm.node import AppNode
 
@@ -33,8 +34,12 @@ def start(ctx, app, port, gateway):
         exit(1)
     namespace, app_name = tuple(app.split(":"))
     definition = {"namespace": namespace, "settings": {"port": port}, "name": app_name}
-    node = AppNode.build(definition)
-    node.start()
-    if gateway:
-        gateway = GatewayNode.build({"local": "true", "nodes": [app_name]}, nodes={app_name: node})
-        gateway.start()
+    try:
+        node = AppNode.build(definition)
+        node.start()
+        if gateway:
+            gateway = GatewayNode.build({"local": "true", "nodes": [app_name]}, nodes={app_name: node})
+            gateway.start()
+    except ConfigError as e:
+        logger.error(str(e))
+        exit(1)

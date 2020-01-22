@@ -81,10 +81,11 @@ class AppNode(LocalNode):
             raise ConfigError(f"The node definition for {node_name} must specify the namespace field.")
 
         hashed_app_name = get_hashed_app_name(node_name)
-        __import__(namespace)
-        app = getattr(sys.modules["__main__"], hashed_app_name, None)
-        if app and isinstance(app, Frazzl):
-            local_node_context.update({"app": app})
-            return local_node_context
-
-        raise ConfigError(f"Could not find an app named {node_name} in the namespace {namespace}.")
+        try:
+            __import__(namespace)
+            app = getattr(sys.modules["__main__"], hashed_app_name, None)
+            if app and isinstance(app, Frazzl):
+                local_node_context.update({"app": app})
+                return local_node_context
+        except ModuleNotFoundError:
+            raise ConfigError(f"Could not find an app named {node_name} in the namespace {namespace}.")
