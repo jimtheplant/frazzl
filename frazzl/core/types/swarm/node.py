@@ -46,7 +46,7 @@ class LocalNode(FrazzlNode):
 
     @classmethod
     def validate(cls, definition):
-        node_name = definition.get("node_name")
+        node_name = definition.get("name")
         settings = definition.get("settings", None)
         if not settings:
             raise ConfigError(f"The node definition for {node_name} must specify the settings field.")

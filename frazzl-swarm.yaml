@@ -1,9 +1,8 @@
 gateway:
-  local: True
   nodes:
     - testing
 testing:
   settings:
-    port: 8000
+    port: 8001
   namespace: sandbox_app.app
 

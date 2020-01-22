@@ -3,7 +3,6 @@ import contextlib
 
 import yaml
 
-from frazzl.core.exceptions import ConfigError
 from .gateway import GatewayNode
 from .node import *
 from .settings import SwarmSettings
@@ -16,8 +15,8 @@ class FrazzlSwarm:
         self.settings = None
         self.swarm_definition = swarm_definition
 
-    def build(self):
-        self._build_nodes()
+    def build(self, gateway=True):
+        self._build_nodes(gateway=gateway)
         return self
 
     @classmethod
@@ -27,13 +26,15 @@ class FrazzlSwarm:
         swarm.build()
         yield swarm
         if rebuild:
-            swarm.build()
+            gateway = True if swarm.gateway else False
+            swarm.build(gateway=gateway)
         swarm.start_nodes()
 
     def start_nodes(self):
         for node in self.nodes.values():
             node.start()
-        self.gateway.start()
+        if self.gateway:
+            self.gateway.start()
         atexit.register(self.stop)
         for node in self.nodes.values():
             node.context.process.join()
@@ -42,7 +43,7 @@ class FrazzlSwarm:
     def validate(cls, swarm_definition):
         return cls._validate(swarm_definition)
 
-    def _build_nodes(self):
+    def _build_nodes(self, gateway=True):
         for key, value in self.swarm_definition.items():
             if key == "settings":
                 self.settings = SwarmSettings.build(value)
@@ -51,7 +52,8 @@ class FrazzlSwarm:
             else:
                 self._build_node(key, value)
         gateway_definition = self.swarm_definition.get("gateway")
-        self.gateway = GatewayNode.build(dict(name="gateway", **gateway_definition), nodes=self.nodes)
+        if gateway:
+            self.gateway = GatewayNode.build(dict(name="gateway", **gateway_definition), nodes=self.nodes)
 
     def _build_node(self, node_name, node_definition):
         if "namespace" in node_definition.keys():
