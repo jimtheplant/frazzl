@@ -16,7 +16,7 @@ setup(
     },
     install_requires=[
         "ariadne==0.7",
-        "uvicorn==0.10.8",
+        "uvicorn==0.11.7",
         "nodeenv==1.3.3",
         "click==7.0"
     ]
